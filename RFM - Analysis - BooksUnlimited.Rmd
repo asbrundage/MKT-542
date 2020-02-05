@@ -1,0 +1,179 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+```{r cars}
+library(tidyverse)
+library(haven)
+library(plotly)
+library(corrplot)
+
+bbb <- read_dta("C:/Users/asbru/Documents/Emory/Data Driven MKT Intelligence/Lectures/BBB.dta")
+
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r }
+pcu_clean <-
+  pcu %>%
+  mutate(Male = case_when(gender == 1 ~ "Male",
+                          gender == 2 ~ "Female"))
+summary(pcu)
+
+```
+##Plot
+
+```{r}
+
+bbb<-
+  bbb%>%
+  mutate_at(vars(gender), ~as.factor(gender))
+
+head(bbb)
+
+
+```
+
+#Question 1
+
+```{r}
+
+summary(bbb)
+
+```
+
+#Question 2
+
+```{r}
+bbbstate <- 
+  bbb %>%
+  group_by(state) %>% 
+  tally()
+
+# %>%
+#   mutate(percent_by_state = stateper/50000 )
+
+```
+
+#Question 3
+
+```{r}
+BBBavg <-
+  bbb %>%
+  mutate(avgspend = mean(total_)) %>%
+  mutate(avglast = mean(last)) %>%
+  mutate((avgpurch = mean(purch)))
+
+
+```
+
+#Question 4
+
+```{r}
+
+correlation <- 
+  bbb%>%
+  select(book_,nonbook_)
+M <- 
+  cor(correlation)
+# png(file="corr.png", res=300, width=4500, height=4500)
+corrplotly <- corrplot(M, method = "number", number.cex = 1, tl.cex = 1, title = "All Positions", mar=c(0,0,1,0))
+
+
+```
+
+#Question 5
+
+```{r}
+model1 <- lm(book_ ~ nonbook_, data = bbb)
+
+summary(model1)
+
+```
+
+
+#Question 6
+
+```{r}
+bbbcat <-
+  bbb%>%
+  mutate(childsum = sum(child)) %>%
+  mutate(youthsum = sum(youth)) %>%
+  mutate(cooksum = sum(cook)) %>%
+  mutate(doitsum = sum(do_it)) %>%
+  mutate(referencesum = sum(refernce)) %>%
+  mutate(geosum = sum(geog)) %>%
+  mutate(artsum = sum(art))
+```
+
+#Question 7
+
+```{r}
+
+BBBbargender <-
+  bbb %>%
+  group_by(gender) %>%
+  mutate(avgspend = mean(book_)) %>%
+  ggplot(aes(x = gender, y = avgspend)) +
+  geom_col()
+
+ggplotly(BBBbargender)
+
+```
+
+#Question 8
+
+```{r}
+BBBbargenderv2 <-
+  bbb %>%
+  filter(gender == 'M')
+
+BBBbargenderv3 <-
+  bbb %>%
+  filter(gender == 'F')
+
+  t.test(BBBbargenderv2$total_)
+  t.test(BBBbargenderv3$total_)
+
+```
+
+#Question 9
+
+```{r}
+BBBq9 <-
+  bbb%>%
+  mutate(Female = case_when(gender == "F" ~ 1,
+                            gender == "M" ~ 0))
+
+model2 <- lm(total_ ~ Female, data = BBBq9)
+
+summary(model2)
+  
+
+```
+
+#Question 10
+
+```{r}
+
+BBBq10 <-
+  BBBq9 %>%
+  group_by(Female,buyer) %>%
+   summarise(n = n()) %>%
+  mutate(freq = n / sum(n))
+  
+BBBq10
+
+```
+
