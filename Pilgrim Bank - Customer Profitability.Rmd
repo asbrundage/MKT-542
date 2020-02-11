@@ -1,0 +1,212 @@
+---
+title: "Pilgrim Bank"
+author: "Sean Brundage"
+output: word_document 
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup, load and transform data
+
+```{r cars}
+library(tidyverse)
+library(haven)
+library(ggthemes)
+library(knitr)
+library(broom)
+library(moderndive)
+
+
+pilgrim <- read_dta("C:/Users/asbru/Documents/Emory/Data Driven MKT Intelligence/Assigments/Pilgrim Bank/PilgrimA.dta")
+
+pilgrimv2 <-
+  pilgrim %>%
+  mutate(profitability = case_when(profit > 0 ~ 1,
+                                   profit < 0 ~ -1,
+                                   profit == 0 ~ 0))
+sum(is.na(pilgrimv2$profitability))
+
+```
+
+##1. How do profits vary across customers?
+
+```{r}
+
+pilgrimsum <-
+  pilgrimv2 %>%
+  group_by(profitability) %>%
+   summarise(n = n()) %>%
+  mutate(percent = round(n / sum(n), 2))
+  
+pilgrimsum
+
+
+pilgrimten <-
+  pilgrimv2 %>%
+  group_by(tenure) %>%
+  summarise(n = n(), avg_profit = mean(profit)) %>%
+  mutate(percent = round(n / sum(n), 2)) 
+  
+pilgrimten
+
+```
+
+Descriptive plots
+
+```{r}
+
+pilgrimhist <-
+  pilgrimv2%>%
+  ggplot(aes(x=profit)) +
+  geom_histogram() +
+  labs(title = "Chart 1: Profit by Customer") +
+  theme_economist()
+
+pilgrimhist
+
+pilgrimhistsplit <-
+  pilgrimv2%>%
+  filter(!is.na(age)) %>%
+  ggplot(aes(x=tenure, fill = as.factor(age))) +
+  geom_histogram() +
+  labs(title = "Chart 2: Profitable Customers by Age") +
+  facet_wrap(~online, scales = "free_y") +
+  theme_economist()
+
+pilgrimhistsplit
+
+pilgrimhistsplitinc <-
+  pilgrimv2%>%
+  filter(!is.na(age),profitability == 1) %>%
+  ggplot(aes(x=tenure, fill = as.factor(inc))) +
+  geom_histogram() +
+  facet_wrap(~online) +
+  labs(title = "Chart 2: Profitable Customers by Income and Online Status") +
+  theme_economist()
+
+pilgrimhistsplitinc
+
+pilgrimtenhist <-
+  pilgrimv2%>%
+  filter(profitability == 1) %>%
+  ggplot(aes(x=tenure, fill = as.factor(online))) +
+  geom_histogram() +
+  stat_bin(binwidth=1) +
+  labs(title = "Chart 3: Profitable Customers and Online Banking Status") +
+  theme_economist()
+
+pilgrimtenhist
+
+pilgrimbox <-
+  pilgrimv2%>%
+  filter(!is.na(inc)) %>%
+  ggplot(aes(x=as.factor(inc), y = profit, color = as.factor(inc) )) +
+  geom_boxplot() +
+  theme_economist()
+
+pilgrimbox
+
+```
+
+53% of customers at Pilgrim bank are profitable, with the majority of them being offline customers. There also appear to be very few customers with longer tenure that have decided to use online banking (Chart 2). A large number of Pilgrim's customers are producing less than $500 in profit per customer (Chart 1).
+
+#2. How does Pilgrim Bank make money from their customers and how can this explain the variation in customer profitability?
+
+Though there are lots of customers with a low amount of tenure, they are not nearly as profitable as longer tenured customers. This could be because they may not have as many accounts and/or utilize less services than the customers with longer tenures. What we can't see from the data is the loan balance and loan interest fee data. The case mentions that interest income from loans and investment income from deposits are large sources of income from the bank. As we'll see later, average profitability increases with income brackets (over 40% of customers make over 50k annually), so one can infer that Pilgrim is collecting revenue beyond just fees from these customers.
+
+#3. Are online customers more profitable than offline customers?
+
+```{r}
+
+pilgrimonline <-
+  pilgrimv2 %>%
+  group_by(online) %>%
+  summarise(n = n(), avg_profit = mean(profit)) %>%
+  mutate(percent = round(n / sum(n), 2)) 
+  
+pilgrimonline
+
+```
+
+#Run regression to try to explain profit with online usage
+
+```{r}
+
+model1 <- lm(profit ~ online ,data = pilgrimv2)
+
+summary(model1)
+
+# stargazer(onlineprofitmodel, type = "text")
+
+```
+
+Because the p-value is greater than 0.05, this variable is not significant for our model. Additionally, the r-squared is so low that there is a significant amount of variability in the data that is not explained by what is included in this model. At a minimum should try using other variables to increase the model results. However, we can tell from our summary statistics that the average profitability of online customers is greater than offline ones by nearly $6.
+
+#4. What is the role of customer demographics in online and offline profitability?
+
+```{r}
+
+pilgrimage <-
+  pilgrimv2 %>%
+  group_by(age) %>%
+  summarise(n = n(), avg_profit = mean(profit)) %>%
+  mutate(percent = round(n / sum(n), 2)) 
+  
+pilgrimage %>%
+  kable()
+
+pilgriminc <-
+  pilgrimv2 %>%
+  filter(!is.na(inc)) %>%
+  group_by(online,inc) %>%
+  summarise(n = n(), avg_profit = mean(profit)) %>%
+  mutate(percent = round(n / sum(n), 2)) 
+  
+pilgriminc %>%
+  kable()
+
+model2 <- lm(profit ~ online + age + inc,data = pilgrimv2)
+
+summary(model2)
+
+
+
+```
+
+
+
+#5. Recommendation
+
+
+```{r}
+pilgrimscatter2 <-
+  pilgrimv2%>%
+  filter(online == 1,!is.na(age)) %>%
+  ggplot(aes(x=tenure, y = profit, color = as.factor(age))) +
+  geom_point() +
+  # geom_text() +
+  # stat_bin(binwidth=1) +
+  labs(title = "Chart 3: Profitable Customers and Online Banking Status") +
+  theme_economist()
+# ggplotly(pilgrimhist)
+pilgrimscatter2
+
+pilgrimscatter3 <-
+  pilgrimv2%>%
+  filter(online == 0,!is.na(age)) %>%
+  ggplot(aes(x=tenure, y = profit, color = as.factor(age))) +
+  geom_point() +
+  # geom_text() +
+  # stat_bin(binwidth=1) +
+  labs(title = "Chart 3: Profitable Customers and Online Banking Status") +
+  theme_economist()
+# ggplotly(pilgrimhist)
+pilgrimscatter3
+
+```
+
+
+There has been a considerable rise in online banking activity in recent years. Given that the most profitable customers are those that are older and more tenured, Pilgrim should focus on retaining customers through rebate incentives. Imposing fees could serve to frustrate customers and lead them to search for other banking services.
